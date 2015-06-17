@@ -1,5 +1,5 @@
 ---
-title: "Storm analysis"
+title: "The most deadly and harmful weather events across the USA"
 author: "Timo Grossenbacher"
 date: "June 17, 2015"
 output: html_document
