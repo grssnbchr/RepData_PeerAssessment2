@@ -14,11 +14,11 @@ Across the United States, which types of events have the greatest economic conse
 
 ## Synopsis
 
-The goal of this analysis was to identify the most severe types of weather events, in terms of effects on population health and economy. To do this, the huge NOAA storm database was used. As said, the dataset contains a huge amount of events since the 50es. In order to speed up data analysis, a random sample of 10% of the original data was drawn, and only data from 2000 onwards was selected. The results of the data analysis indicate that tornadoes, heat waves and floods together cause about half of all the weather-driven fatalities. In terms of injuries, tornadoes, heat waves and strong winds seem to be responsible for more than 75% of them.
+The goal of this analysis was to identify the most severe types of weather events, in terms of effects on population health and economy. To do this, the huge NOAA storm database was used. As said, the dataset contains a huge amount of events since the 50es. In order to speed up data analysis, a random sample of 10% of the original data was drawn, and only data from 2000 onwards was selected. The results of the data analysis indicate that heat waves, tornadoes and floods together cause about half of all the weather-driven fatalities. In terms of injuries, tornadoes, heat waves and strong winds seem to be responsible for more than 75% of them. It may be assumed that the economic consequences of these weather events are similiar. 
 
 ## Preparations
 
-```{r, cache=TRUE}
+```{r}
 # load necessary packages
 if(!require(dplyr)) {
   install.packages("dplyr", repos="http://cran.us.r-project.org")
@@ -69,7 +69,7 @@ sort(unique(stormdata_reduced$EVTYPE))
 ```
 There seem to be multiple problems:
 
- * First, the number of different event types is massive. 
+ * First, the number of different event types is massive (108 different types)
  * The event types seem to be unstructured - there are duplicates (slightly differently spelt, etc.), e.g. COLD and COLD WEATHER which are essentially the same.
 
 Now, which variables can be used to measure effects on population health? 
@@ -125,7 +125,7 @@ But first, EVTYPE needs to be converted to character, makes it easier
 ```{r}
 stormdata_reduced_major %<>%
     mutate(EVTYPE = as.character(EVTYPE))
-stormdata_reduced_major[stormdata_reduced_major$EVTYPE == "HEAT",]$EVTYPE <- "EXCESSIVE_HEAT"
+stormdata_reduced_major[stormdata_reduced_major$EVTYPE == "HEAT",]$EVTYPE <- "EXCESSIVE HEAT"
 stormdata_reduced_major[stormdata_reduced_major$EVTYPE == "EXTREME COLD/WIND CHILL",]$EVTYPE <- "EXTREME COLD"
 stormdata_reduced_major[stormdata_reduced_major$EVTYPE == "COLD/WIND CHILL",]$EVTYPE <- "EXTREME COLD"
 stormdata_reduced_major[stormdata_reduced_major$EVTYPE == "COLD WEATHER",]$EVTYPE <- "EXTREME COLD"
@@ -137,6 +137,11 @@ stormdata_reduced_major[stormdata_reduced_major$EVTYPE == "WIND",]$EVTYPE <- "ST
 stormdata_reduced_major[stormdata_reduced_major$EVTYPE == "WINTER WEATHER/MIX",]$EVTYPE <- "WINTER WEATHER"
 stormdata_reduced_major[stormdata_reduced_major$EVTYPE == "WINTER STORM",]$EVTYPE <- "BLIZZARD"
 stormdata_reduced_major[stormdata_reduced_major$EVTYPE == "FLASH FLOOD",]$EVTYPE <- "FLOOD"
+
+# recalculate
+stormdata_reduced_major_summary <- stormdata_reduced_major %>% 
+    group_by(EVTYPE) %>% 
+    summarise(sum_injuries = sum(INJURIES), sum_fatalities = sum(FATALITIES))
 ```
 
 
@@ -158,36 +163,22 @@ fatalities <- stormdata_reduced_major_summary %>%
     as.data.frame()
 
 stormdata_reduced_major_summary %<>%
-    mutate(EVTYPE = factor(EVTYPE, levels = fatalities$EVTYPE))
+    mutate(EVTYPE = factor(EVTYPE, levels = fatalities$EVTYPE)) %>% 
+    arrange(desc(sum_fatalities))
 
-ggplot(fatalities %>% slice(1:10), aes(x = EVTYPE, y = sum_fatalities)) + 
+ggplot(stormdata_reduced_major_summary %>% slice(1:10), aes(x = EVTYPE, y = sum_fatalities)) + 
   geom_bar(stat = "identity", position = position_dodge()) +
   theme(axis.text.x = element_text(angle=45, vjust=0.5)) +
   xlab("Type of event") + ylab("Number of fatalities caused in sample dataset") +
   ggtitle("The ten most deadly weather event types")
 ```
+It seems that the distribution of fatalities per weather event type is neither uniform nor very skewed as it is for injuries (plot not shown because of limit).
 
 In terms of injuries, these are the three most harmful types of events:
 ```{r}
 stormdata_reduced_major_summary %>% arrange(desc(sum_injuries))  %>% slice(1:3) %>% select(EVTYPE)
 cumsum(sort(stormdata_reduced_major_summary$sum_injuries, decreasing = T))[3]/sum(stormdata_reduced_major_summary$sum_injuries)
 # They are together responsible for more than 3/4 of the injuries
-```
-
-Let's look at the distribution of injured among the most harmful weather event types. 
-```{r}
-# sort by fatalities
-injuries <- stormdata_reduced_major_summary %>% 
-    arrange(desc(sum_injuries)) %>% 
-    as.data.frame()
-
-stormdata_reduced_major_summary %<>%
-    mutate(EVTYPE = factor(EVTYPE, levels = injuries$EVTYPE))
-ggplot(injuries %>% slice(1:10), aes(x = EVTYPE, y = sum_injuries)) + 
-  geom_bar(stat = "identity", position = position_dodge()) +
-  theme(axis.text.x = element_text(angle=45, vjust=0.5)) +
-  xlab("Type of event") + ylab("Number of injured people caused in sample dataset") +
-  ggtitle("The ten most harmful weather event types")
 ```
 
 ## Remarks
